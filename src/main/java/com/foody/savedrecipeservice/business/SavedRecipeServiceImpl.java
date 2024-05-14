@@ -7,6 +7,7 @@ import com.foody.savedrecipeservice.business.rabbitmq.event.SavedRecipeEvent;
 import com.foody.savedrecipeservice.configuration.RabbitMQConfig;
 import com.foody.savedrecipeservice.domain.RecipeRequestMetaData;
 import com.foody.savedrecipeservice.domain.SavedRecipeResponse;
+import com.foody.savedrecipeservice.domain.SavedRecipesResponse;
 import com.foody.savedrecipeservice.persistence.SavedRecipeRepository;
 import com.foody.savedrecipeservice.persistence.entity.SavedRecipe;
 import jakarta.transaction.Transactional;
@@ -27,14 +28,15 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
     private final SavedRecipeRepository savedRecipeRepository;
     private final SavedRecipeEventPublisher savedRecipeEventPublisher;
 
-
+    @Override
     public boolean checkIfCanAdd(Long userId, Long recipeId){
         Optional<SavedRecipe> optionalSavedRecipe = savedRecipeRepository.findByUserIdAndAndRecipeId(userId, recipeId);
-        return optionalSavedRecipe.isEmpty();
+        return optionalSavedRecipe.isPresent();
     }
+
     @Override
     public void addFavoriteRecipe(Long id, RecipeRequestMetaData requestMetaData){
-        if(!this.checkIfCanAdd(id, requestMetaData.getId())){
+        if(this.checkIfCanAdd(id, requestMetaData.getId())){
             throw new AlreadyAddedException();
         }
 
@@ -56,9 +58,10 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
     }
 
     @Override
-    public void removeFavoriteRecipe(Long id){
+    @Transactional
+    public void removeFavoriteRecipe(Long userId, Long recipeId){
 
-        Optional<SavedRecipe> optionalSavedRecipe = savedRecipeRepository.findById(id);
+        Optional<SavedRecipe> optionalSavedRecipe = savedRecipeRepository.findByUserIdAndAndRecipeId(userId, recipeId);
         if(optionalSavedRecipe.isEmpty()){
             throw new SavedRecipeNotFoundException();
         }
@@ -71,21 +74,24 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
         savedRecipeEventPublisher.publishSavedRecipeEvent(savedRecipeEvent);
         System.out.println("sending to recipe the event for removing: " + savedRecipeEvent);
 
-        this.savedRecipeRepository.deleteById(id);
+        this.savedRecipeRepository.deleteByRecipeIdAndUserId(recipeId, userId);
     }
 
     @Override
-    public List<SavedRecipeResponse> getSavedRecipesByUserId(Long id, int page, int size) {
+    public SavedRecipesResponse getSavedRecipesByUserId(Long id, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<SavedRecipe> recipePage = savedRecipeRepository.findByUserId(id, pageable);
 
-        if (recipePage.isEmpty()) {
+
+        List<SavedRecipeResponse> recipeResponses = recipePage.getContent().stream()
+                .map(this::mapToRecipeResponse)
+                .collect(Collectors.toList());
+
+        if (recipeResponses.isEmpty()) {
             throw new SavedRecipeNotFoundException();
         }
 
-        return recipePage.getContent().stream()
-                .map(this::mapToRecipeResponse)
-                .collect(Collectors.toList());
+        return new SavedRecipesResponse(recipeResponses, recipePage.getTotalPages());
     }
 
 

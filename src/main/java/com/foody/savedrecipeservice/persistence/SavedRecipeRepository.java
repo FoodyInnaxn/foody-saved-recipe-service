@@ -13,4 +13,5 @@ public interface SavedRecipeRepository extends JpaRepository<SavedRecipe, Long> 
     Optional<SavedRecipe> findByUserIdAndAndRecipeId(Long userId, Long recipeId);
     List<SavedRecipe> findByRecipeId(Long recipeId);
     void deleteByRecipeId(Long recipeId);
+    void deleteByRecipeIdAndUserId(Long recipeId, Long userId);
 }
