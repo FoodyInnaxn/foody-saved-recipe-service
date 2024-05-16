@@ -12,6 +12,7 @@ import com.foody.savedrecipeservice.persistence.SavedRecipeRepository;
 import com.foody.savedrecipeservice.persistence.entity.SavedRecipe;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SavedRecipeServiceImpl implements SavedRecipeService {
     private final SavedRecipeRepository savedRecipeRepository;
     private final SavedRecipeEventPublisher savedRecipeEventPublisher;
@@ -39,7 +41,7 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
         if(this.checkIfCanAdd(id, requestMetaData.getId())){
             throw new AlreadyAddedException();
         }
-
+        log.info("hey add service");
         SavedRecipe savedRecipe = new SavedRecipe();
         savedRecipe.setUserId(id);
         savedRecipe.setRecipeId(requestMetaData.getId());
@@ -48,7 +50,7 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
         savedRecipe.setDescription(requestMetaData.getDescription());
         savedRecipe.setUrls(requestMetaData.getUrlImages());
         SavedRecipe newSavedRecipe = savedRecipeRepository.save(savedRecipe);
-
+        log.info("saved {}" , newSavedRecipe);
         // sending message to recipe service
         SavedRecipeEvent savedRecipeEvent= new SavedRecipeEvent();
         savedRecipeEvent.setRecipeId(newSavedRecipe.getRecipeId());
@@ -81,12 +83,13 @@ public class SavedRecipeServiceImpl implements SavedRecipeService {
     public SavedRecipesResponse getSavedRecipesByUserId(Long id, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<SavedRecipe> recipePage = savedRecipeRepository.findByUserId(id, pageable);
-
+        log.info("recipe page", recipePage);
 
         List<SavedRecipeResponse> recipeResponses = recipePage.getContent().stream()
                 .map(this::mapToRecipeResponse)
                 .collect(Collectors.toList());
 
+        log.info("recipeResponses", recipeResponses);
         if (recipeResponses.isEmpty()) {
             throw new SavedRecipeNotFoundException();
         }
