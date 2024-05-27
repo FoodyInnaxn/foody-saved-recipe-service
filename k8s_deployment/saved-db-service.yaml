@@ -6,13 +6,14 @@ metadata:
     kompose.version: 1.31.2 (a92241f79)
   creationTimestamp: null
   labels:
-    io.kompose.service: saved-recipe-service
-  name: saved-recipe-service
+    io.kompose.service: saved-db
+  name: saved-db
 spec:
   ports:
-    - name: "8065"
-      port: 8065
-      targetPort: 8065
+    - name: "5438"
+      port: 5438
+      targetPort: 5432
   selector:
-    io.kompose.service: saved-recipe-service
-  type: ClusterIP
+    io.kompose.service: saved-db
+status:
+  loadBalancer: {}
